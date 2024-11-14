@@ -1,5 +1,5 @@
 """
-ASGI config for django_Wss project.
+ASGI config for wss3 project.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.asgi import get_asgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_Wss.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wss3.settings')
 
 application = get_asgi_application()

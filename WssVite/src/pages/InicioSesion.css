@@ -1,31 +1,28 @@
-:root {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-}
 
 .formulario {
-    width: 600px;
+    width: 500px;
+    margin: 0 auto;
     margin-top: 110px;
     transition: transform 0.3s ease-in-out; /* Animación de transición */
 }
 
 .container {
     background-color: white;
-    padding: 110px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Sombra */
+}
+
+.conInicio{
+    padding: 110px;
 }
 
 .formulario:hover {
     transform: scale(1.02);
 }
 
-h2 {
-    margin-bottom: 30px;
+.titulo {
     font-weight: 600;
     text-align: center;
-    color: #0d47a1; /* Un color azul más oscuro para el título */
 }
 
 #username, #passwordInput {
@@ -42,6 +39,7 @@ h2 {
 }
 
 #showPasswordCheck {
+    
     margin-right: 10px;
 }
 

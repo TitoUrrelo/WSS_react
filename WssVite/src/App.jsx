@@ -3,10 +3,8 @@ import { InicioSesion } from './pages/InicioSesion'
 import { Trabajador } from './pages/Trabajador'
 import { Supervisor } from './pages/Supervisor'
 import { Administrador } from './pages/Administrador'
+import { FormularioART } from './pages/Art'
 /*
-
-import { Art } from './pages/Art'
-<Route path="/art" element={<Art/>}/>
 
 */
 
@@ -14,11 +12,12 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path ="/" element={<Navigate to="/inicioSesion"/>}/>
-        <Route path ="/inicioSesion" element={<InicioSesion/>}/>
-        <Route path ="/trabajador" element={<Trabajador/>}/>
-        <Route path ="/supervisor" element={<Supervisor/>}/>
-        <Route path ="/Administrador" element={<Administrador/>}/>
+        <Route path ="/" element={<Navigate to="/InicioSesion"/>}/>
+        <Route path ="/InicioSesion" element={<InicioSesion/>}/>
+        <Route path ="/Trabajador/:userRut" element={<Trabajador/>}/>
+        <Route path ="/Supervisor/:userRut" element={<Supervisor/>}/>
+        <Route path ="/Administrador/:userRut" element={<Administrador/>}/>
+        <Route path="/art" element={<FormularioART/>}/>
       </Routes>
     </BrowserRouter>
   );

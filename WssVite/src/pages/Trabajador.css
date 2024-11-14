@@ -1,10 +1,11 @@
 .boton {
     margin-left: 10px;
 }
-h3 {
-    margin: 100px;
+
+.conTrab{
+    height: 750px;
 }
-.divider-col {
-    display: flex;
-    justify-content: flex-end; /* Alinea el contenido hacia la derecha dentro de la columna */
+
+.cardInfoTrab{
+    height: 750px;
 }
