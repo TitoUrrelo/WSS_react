@@ -12,8 +12,6 @@ export function Administrador() {
     const [empleadosTrab, setEmpleadosTrab] = useState([]);
     const [empleadosSuper, setEmpleadosSuper] = useState([]);
 
-    const [empleadoAEliminar, setEmpleadoAEliminar] = useState(null);
-
     const [modalEliminar, setModalEliminar] = useState(false);
     const [modalModificar, setModalModificar] = useState(false);
 
@@ -394,7 +392,7 @@ export function Administrador() {
                                                 <Modal isOpen={modalEliminar} toggle={toggleEliminar}>
                                                     <ModalHeader toggle={toggleEliminar}>Confirmar eliminación</ModalHeader>
                                                     <ModalBody>
-                                                        ¿Está seguro de que desea eliminar al trabajador {empleadoAEliminar?.emp_nombre}?
+                                                        ¿Está seguro de que desea eliminar al trabajador {empleadoEliminar?.emp_nombre}?
                                                     </ModalBody>
                                                     <ModalFooter>
                                                         <Button color="secondary" onClick={handleCancelar}>Cancelar</Button>
@@ -600,7 +598,7 @@ export function Administrador() {
                                             <Modal isOpen={modalEliminar} toggle={toggleEliminar}>
                                                     <ModalHeader toggle={toggleEliminar}>Confirmar eliminación</ModalHeader>
                                                     <ModalBody>
-                                                        ¿Está seguro de que desea eliminar al trabajador {empleadoAEliminar?.emp_nombre}?
+                                                        ¿Está seguro de que desea eliminar al trabajador {empleadoEliminar?.emp_nombre}?
                                                     </ModalBody>
                                                     <ModalFooter>
                                                         <Button color="secondary" onClick={handleCancelar}>Cancelar</Button>

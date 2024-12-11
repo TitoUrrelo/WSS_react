@@ -7,4 +7,6 @@ urlpatterns = [
     path('Empleado/modificar/<str:id>/<str:idEmpleado>', views.modificarEmpleado),
     path('EmpleadosCargo/<str:cargo>', views.obtenerEmpleadosCargo),
     path('Login/', views.autenticarEmpleado),
+    path('Actividad/<str:rut>/', views.modificarActividad),
+    path('ActualizarActividad/<str:rut>/', views.actualizarActividadEmpleado),
 ]

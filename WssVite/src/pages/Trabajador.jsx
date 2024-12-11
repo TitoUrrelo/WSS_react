@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Container, Row, Col, Form, FormGroup, Label, Input, Card, CardBody, Button, Alert } from 'reactstrap';
+import { Container, Row, Col, Form, FormGroup, Label, Card, CardBody, Button, Alert } from 'reactstrap';
 import './Trabajador.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 export function Trabajador() {
     const { userRut } = useParams();
+    const navigate = useNavigate(); // Hook de navegación de React Router
     console.log(userRut);
 
     // Define el estado para los datos del trabajador
@@ -14,7 +15,9 @@ export function Trabajador() {
         emp_nombre: '',
         emp_direccion: '',
         emp_telefono: '',
-        emp_correo: ''
+        emp_correo: '',
+        emp_especialidad: '',
+        emp_actividad: '' // Agregamos el nuevo campo
     });
     const [error, setError] = useState(null);
 
@@ -32,6 +35,30 @@ export function Trabajador() {
         fetchWorkerData();
     }, [userRut]);  // Re-ejecutar cuando cambie emp_rut
 
+    // Comprobamos si la actividad está en la lista de actividades permitidas
+    const isActivityAllowed = [
+        'Lavado de material',
+        'Lecturas en equipo de A.A.',
+        'Masado de muestras',
+        'Digestión acida de muestras',
+        'Lixiviaxión de muestras'
+    ].includes(worker.emp_actividad);
+
+    // Función para manejar la navegación y pasar datos
+    const handleNavigate = () => {
+        const workerData = {
+            emp_nombre: worker.emp_nombre,
+            emp_direccion: worker.emp_direccion,
+            emp_telefono: worker.emp_telefono,
+            emp_correo: worker.emp_correo,
+            emp_especialidad: worker.emp_especialidad,
+            emp_actividad: worker.emp_actividad,
+            emp_rut: worker.emp_rut
+        };
+    
+        navigate('/art', { state: workerData }); // Pasa solo el objeto con los datos requeridos
+    };
+
     return (
         <Container className="mt-3 conTrab">
             <Row>
@@ -42,43 +69,23 @@ export function Trabajador() {
                             <Form>
                                 <FormGroup>
                                     <Label for="fullName">Nombre Completo</Label>
-                                    <Input
-                                        type="text"
-                                        name="fullName"
-                                        id="fullName"
-                                        value={worker.emp_nombre}  // Usa el valor del estado
-                                        readOnly
-                                    />
+                                    <p id="fullName">{worker.emp_nombre}</p> {/* Usamos <p> para mostrar el dato */}
                                 </FormGroup>
                                 <FormGroup>
                                     <Label for="address">Dirección de Residencia</Label>
-                                    <Input
-                                        type="text"
-                                        name="address"
-                                        id="address"
-                                        value={worker.emp_direccion}  // Usa el valor del estado
-                                        readOnly
-                                    />
+                                    <p id="address">{worker.emp_direccion}</p> {/* Usamos <p> para mostrar el dato */}
                                 </FormGroup>
                                 <FormGroup>
                                     <Label for="phone">Teléfono</Label>
-                                    <Input
-                                        type="text"
-                                        name="phone"
-                                        id="phone"
-                                        value={worker.emp_telefono}  // Usa el valor del estado
-                                        readOnly
-                                    />
+                                    <p id="phone">{worker.emp_telefono}</p> {/* Usamos <p> para mostrar el dato */}
                                 </FormGroup>
                                 <FormGroup>
                                     <Label for="email">Correo Electrónico</Label>
-                                    <Input
-                                        type="email"
-                                        name="email"
-                                        id="email"
-                                        value={worker.emp_correo}  // Usa el valor del estado
-                                        readOnly
-                                    />
+                                    <p id="email">{worker.emp_correo}</p> {/* Usamos <p> para mostrar el dato */}
+                                </FormGroup>
+                                <FormGroup>
+                                    <Label for="especialidad">Especialidad</Label>
+                                    <p id="especialidad">{worker.emp_especialidad}</p> {/* Usamos <p> para mostrar el dato */}
                                 </FormGroup>
                             </Form>
                         </CardBody>
@@ -94,8 +101,28 @@ export function Trabajador() {
                         <br />
                     </div>
                     {error && <Alert color="danger">{error}</Alert>}  {/* Muestra mensaje de error si ocurre */}
+
+                    {/* Mostrar alerta según el valor de emp_actividad */}
+                    {worker.emp_actividad === 'sin actividad' && (
+                        <Alert color="danger">El trabajador no tiene actividad asignada.</Alert>
+                    )}
+
+                    {isActivityAllowed && (
+                        <Alert color="success">Actividad "{worker.emp_actividad}" válida para iniciar ART.</Alert>
+                    )}
+
+                    {/* Si no es una actividad válida, mostrar una alerta informativa */}
+                    {!isActivityAllowed && worker.emp_actividad && worker.emp_actividad !== 'sin actividad' && (
+                        <Alert color="warning">Actividad "{worker.emp_actividad}" no válida para iniciar ART.</Alert>
+                    )}
+
                     <div className="botonesTrab">
-                        <Button color="primary" className="botonIniciar">
+                        <Button
+                            color="primary"
+                            className="botonIniciar"
+                            disabled={!isActivityAllowed}  // Deshabilitar el botón si no es una actividad permitida
+                            onClick={handleNavigate} // Llamar a la función de navegación al hacer clic
+                        >
                             Iniciar ART
                         </Button>
                     </div>

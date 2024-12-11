@@ -9,3 +9,53 @@
 .cardInfoTrab{
     height: 750px;
 }
+
+#fullName {
+    font-size: 1.1rem;
+    color: #333;
+    font-weight: 500;
+    background-color: #f9f9f9;
+    padding: 8px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+#address {
+    font-size: 1.1rem;
+    color: #333;
+    font-weight: 500;
+    background-color: #f9f9f9;
+    padding: 8px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+#phone {
+    font-size: 1.1rem;
+    color: #333;
+    font-weight: 500;
+    background-color: #f9f9f9;
+    padding: 8px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+#email {
+    font-size: 1.1rem;
+    color: #333;
+    font-weight: 500;
+    background-color: #f9f9f9;
+    padding: 8px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+#especialidad {
+    font-size: 1.1rem;
+    color: #333;
+    font-weight: 500;
+    background-color: #f9f9f9;
+    padding: 8px;
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
