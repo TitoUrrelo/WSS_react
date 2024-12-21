@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { Container, Row, Col, Form, FormGroup, Label, Input, Card, CardBody, Button, Spinner, Alert } from 'reactstrap';
+import { Container, Row, Col, Form, FormGroup, Label, Input, Card, CardBody, Button, Spinner, Alert, Table } from 'reactstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
-const PreguntasTransversales = ({ handleChange }) => {
+const PreguntasTransversales = ({ handleChange, handleShowText }) => {
     const preguntas = [
         "¿Conozco el estándar, procedimiento y/o instructivo del trabajo que ejecutaré?",
         "¿Cuento con las competencias y salud compatible para ejecutar el trabajo?",
@@ -17,31 +17,25 @@ const PreguntasTransversales = ({ handleChange }) => {
     const [respuestas, setRespuestas] = useState({});
     const [warnings, setWarnings] = useState([]);
 
-    // Validar las preguntas sin respuesta
     useEffect(() => {
         const noRespondidas = preguntas
             .map((_, index) => `preguntaTransversal${index + 1}`)
-            .filter((name) => !(name in respuestas)); // Detecta preguntas sin responder
-        setWarnings(noRespondidas); // Actualiza advertencias dinámicamente
+            .filter((name) => !(name in respuestas));
+        setWarnings(noRespondidas);
     }, [respuestas]);
 
     const handleSelectionChange = (name, value) => {
-        // Actualizar estado de respuestas
-        setRespuestas((prevRespuestas) => ({
-            ...prevRespuestas,
+        setRespuestas((prev) => ({
+            ...prev,
             [name]: value,
         }));
-
-        // Llamar al manejador proporcionado
         handleChange({ target: { name, value } });
 
-        // Eliminar advertencia si se selecciona una respuesta
-        setWarnings((prevWarnings) => prevWarnings.filter((warning) => warning !== name));
+        if (value === "no") handleShowText(true);
     };
 
     return (
         <>
-            <br />
             <h2 className="text-center">Preguntas Transversales del Trabajador</h2>
             {preguntas.map((pregunta, index) => {
                 const name = `preguntaTransversal${index + 1}`;
@@ -82,29 +76,27 @@ const PreguntasTransversales = ({ handleChange }) => {
     );
 };
 
-const RiesgoCritico = ({ riesgo, handleRiesgoChange }) => {
+const RiesgoCritico = ({ riesgo, handleRiesgoChange, handleShowText }) => {
     const [respuestas, setRespuestas] = useState({});
     const [warnings, setWarnings] = useState([]);
 
     const handleSelectionChange = (index, value) => {
-        // Actualiza la respuesta seleccionada
         setRespuestas((prev) => ({
             ...prev,
             [index]: value,
         }));
 
-        // Llama al manejador externo (si es necesario)
         handleRiesgoChange(index, riesgo.rc_id, value);
+
+        if (value === "no") handleShowText(true);
     };
 
     useEffect(() => {
-        // Valida las respuestas dinámicamente al cambiar el estado
         const noRespondidas = [...Array(Number(riesgo.rc_pregunta))]
             .map((_, index) => index)
-            .filter((index) => !respuestas[index]); // Encuentra preguntas sin respuesta
-
-        setWarnings(noRespondidas); // Actualiza advertencias
-    }, [respuestas, riesgo.rc_pregunta]); // Escucha cambios en respuestas o número de preguntas
+            .filter((index) => !respuestas[index]);
+        setWarnings(noRespondidas);
+    }, [respuestas, riesgo.rc_pregunta]);
 
     return (
         <Card className="mb-4">
@@ -150,6 +142,7 @@ const RiesgoCritico = ({ riesgo, handleRiesgoChange }) => {
         </Card>
     );
 };
+
 
 const PreguntasTrabajoSimultaneo = ({ simultaneoData, handleSimultaneoChange, trabajoSimultaneo }) => (
     <Card className="mb-4">
@@ -280,7 +273,23 @@ const PreguntasTrabajoSimultaneo = ({ simultaneoData, handleSimultaneoChange, tr
     </Card>
 );
 
-export function FormularioART({ actNombre }) {
+export function FormularioART({ actNombre, }) {
+
+
+    const [showTextInput, setShowTextInput] = useState(false);
+    const [textInputValue, setTextInputValue] = useState("");
+
+    const handleShowText = (show) => setShowTextInput(show);
+
+    const handleTextChange = (e) => {
+        const value = e.target.value;
+        // Limitar el texto a 185 caracteres
+        if (value.length <= 185) {
+            setTextInputValue(value);
+        }
+    };
+
+
     const location = useLocation();
     const worker = location.state;
 
@@ -288,9 +297,6 @@ export function FormularioART({ actNombre }) {
     const [actividades, setActividades] = useState([]);
     const [formData, setFormData] = useState({});
     const [transversalData, setTransversalData] = useState({});
-    const [supervisores, setSupervisores] = useState([]);
-    const [supervisorSeleccionado, setSupervisorSeleccionado] = useState('');
-    const [turno, setTurno] = useState('');
     const [estadoTrabajador, setEstadoTrabajador] = useState(null);
     const [trabajoSimultaneo, setTrabajoSimultaneo] = useState(null);
     const [simultaneoData, setSimultaneoData] = useState({
@@ -303,7 +309,34 @@ export function FormularioART({ actNombre }) {
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [alertMessage, setAlertMessage] = useState(null);
+
+    const [empleados, setEmpleados] = useState([]);
+    const [selectedEmpleados, setSelectedEmpleados] = useState([]);
+
+    const selectedRuts = selectedEmpleados.map(empleado => empleado.emp_rut);
     
+    useEffect(() => {
+        axios
+            .get(`http://127.0.0.1:8000/api/personal/Filtrar/${worker.emp_supervisorAcargo}/${worker.emp_nombre}`)
+            .then((response) => {
+                setEmpleados(response.data);
+            })
+            .catch((error) => {
+                console.error('Error al obtener los empleados:', error);
+            });
+        }, [worker.emp_supervisorAcargo]);
+
+        const handleCheckboxChange = (empleado) => {
+            setSelectedEmpleados((prevSelected) => {
+                if (prevSelected.some((item) => item.emp_rut === empleado.emp_rut)) {
+                    // Si ya está seleccionado, se elimina de la lista
+                    return prevSelected.filter((item) => item.emp_rut !== empleado.emp_rut);
+                } else {
+                    // Si no está seleccionado, se agrega a la lista
+                    return [...prevSelected, empleado];
+                }
+                });
+            };
 
     useEffect(() => {
         const fetchDatos = async () => {
@@ -317,12 +350,9 @@ export function FormularioART({ actNombre }) {
                 }
     
                 const actividadResponse = await axios.get(`http://127.0.0.1:8000/api/art/Actividad/${empleadoResponse.data.emp_actividad}/`);
-                const supervisoresResponse = await axios.get('http://127.0.0.1:8000/api/personal/EmpleadosCargo/Supervisor');
-                
                 // Actualizamos los estados con los datos obtenidos
                 setActividades(actividadResponse.data.actividad);
                 setRiesgosCriticos(actividadResponse.data.riesgos_criticos);
-                setSupervisores(supervisoresResponse.data);
             } catch (error) {
                 console.error('Error al cargar los datos:', error);
                 setAlertMessage({ type: 'danger', text: 'Error al cargar los datos. Intente nuevamente.' });
@@ -352,20 +382,17 @@ export function FormularioART({ actNombre }) {
         }));
     };
 
-    const handleTurnoChange = (e) => {
-        setTurno(e.target.value);
-    };
-
-    const handleSupervisorChange = (e) => {
-        setSupervisorSeleccionado(e.target.value);
-    };
-
     const handleEstadoTrabajadorChange = (e) => {
         setEstadoTrabajador(e.target.value === 'true');
+        setAlertVisibleCon(false)
     };
+
+    const [alertVisible, setAlertVisible] = useState(true); // Estado para la visibilidad del alert
+    const [alertVisibleCon, setAlertVisibleCon] = useState(true);
 
     const handleTrabajoSimultaneoChange = (value) => {
         setTrabajoSimultaneo(value);
+        setAlertVisible(false); // Ocultar alerta cuando se selecciona una opción
         if (!value) {
             setSimultaneoData({
                 contextTrabSim: ["no existe trabajo simultáneo"],
@@ -411,6 +438,9 @@ export function FormularioART({ actNombre }) {
         setTimeout(() => {
             setIsSubmitting(false);
             setIsSubmitted(true); // Marca el formulario como enviado
+            setTimeout(() => {
+                window.history.back();
+            }, 5000);
         }, 2000);
 
         try {
@@ -427,7 +457,7 @@ export function FormularioART({ actNombre }) {
         const now = new Date();
         const horaActual = now.toTimeString().split(' ')[0];
         const fechaActual = now.toISOString().split('T')[0];
-        const horaFin = turno === 'dia' ? '21:00' : turno === 'noche' ? '09:00' : null;
+        const horaFin = worker.emp_turno === 'Día' ? '21:00' : worker.emp_turno === 'Noche' ? '09:00' : null;
 
         const respuestas = riesgosCriticos.flatMap((riesgo) =>
             [...Array(Number(riesgo.rc_pregunta))].map((_, index) => ({
@@ -450,10 +480,10 @@ export function FormularioART({ actNombre }) {
                 art_hora_inicio: horaActual,
                 art_hora_fin: horaFin,
                 art_fecha: fechaActual,
-                art_supervisor: supervisorSeleccionado,
+                art_supervisor: worker.emp_supervisorAcargo,
                 art_estado: "Pendiente",
                 actividad: [actividades.act_id],
-                empleado: [worker.emp_rut],
+                empleado: [worker.emp_rut, ...selectedRuts],
                 pregunta: respuestasTransversales,
                 art_contextTrabSim: simultaneoData.contextTrabSim || [],
                 art_coordLider: simultaneoData.coordLider,
@@ -474,9 +504,11 @@ export function FormularioART({ actNombre }) {
         
         // Ahora evaluamos si alguna de las respuestas es "false"
         if (todasLasRespuestas.some((respuesta) => respuesta.respuesta === false)) {
-            data.art.art_estado = "tarjeta verde";  // Si alguna respuesta es "no" o "false"
+            // Si alguna respuesta es "no" o "false"
+            data.art.art_estado = "tarjeta verde" + (textInputValue ? "\n" + textInputValue : "");
         } else {
-            data.art.art_estado = "Pendiente";  // Si todas son "sí" o "true"
+            // Si todas son "sí" o "true"
+            data.art.art_estado = "Pendiente";
         }
 
         try {
@@ -507,45 +539,45 @@ export function FormularioART({ actNombre }) {
                                 <Col md="2"></Col>
                                 <Col md="6">
                                     <h2>Supervisor</h2>
-                                    <FormGroup>
-                                        <Label for="supervisorSpinner">Seleccione un Supervisor: </Label>
-                                        <Input
-                                            type="select"
-                                            id="supervisorSpinner"
-                                            value={supervisorSeleccionado}
-                                            onChange={handleSupervisorChange}
-                                        >
-                                            <option value=""></option>
-                                            {supervisores.map((supervisor) => (
-                                                <option key={supervisor.emp_rut} value={supervisor.emp_nombre}>
-                                                    {supervisor.emp_nombre}
-                                                </option>
-                                            ))}
-                                        </Input>
-                                    </FormGroup>
+                                    <Label for="supervisorSpinner">Supervisor a cargo: {worker.emp_supervisorAcargo} </Label>
                                 </Col>
     
                                 <Col md="4">
                                     <h2>Turno</h2>
-                                    <FormGroup>
-                                        <Label>Seleccione un turno:</Label><br />
-                                        <Input type="radio" name="turno" value="dia" onChange={handleTurnoChange} /> Día 
-                                        <Input type="radio" name="turno" value="noche" className="ms-2" onChange={handleTurnoChange} /> Noche
-                                    </FormGroup>
+                                    <Label>Turno de la actividad: {worker.emp_turno} </Label><br />
                                 </Col>
                                 <Col md="2"></Col>
                                 <Row>
                                     <Col md="2"></Col>
                                     <Col md="8">
-                                        <PreguntasTransversales handleChange={handleTransversalChange} />
-    
+                                        <PreguntasTransversales
+                                            handleChange={handleTransversalChange}
+                                            handleShowText={handleShowText}
+                                        />
+
                                         {riesgosCriticos.map((riesgo) => (
                                             <RiesgoCritico
                                                 key={riesgo.rc_id}
                                                 riesgo={riesgo}
                                                 handleRiesgoChange={handleRiesgoChange}
+                                                handleShowText={handleShowText}
                                             />
                                         ))}
+
+                                        {showTextInput && (
+                                            <FormGroup className="mt-3">
+                                                <Label>Por favor, describe el motivo:</Label>
+                                                <Input
+                                                    type="textarea"
+                                                    maxLength={185} // Limitar a 185 caracteres
+                                                    value={textInputValue}
+                                                    onChange={handleTextChange}
+                                                />
+                                                <div className="text-muted mt-2">
+                                                    {185 - textInputValue.length} caracteres restantes
+                                                </div>
+                                            </FormGroup>
+                                        )}
                                     </Col>
                                     <Col md="2"></Col>
                                 </Row>
@@ -596,22 +628,30 @@ export function FormularioART({ actNombre }) {
                                         <Row>
                                             <Col md="4"></Col>
                                             <Col md="4">
-                                                <FormGroup>
-                                                    <Label>¿Existen trabajos en simultáneo?</Label><br />
-                                                    <Input
-                                                        type="radio"
-                                                        name="trabajoSimultaneo"
-                                                        value="si"
-                                                        onChange={() => handleTrabajoSimultaneoChange(true)}
-                                                    /> Sí
-                                                    <Input
-                                                        type="radio"
-                                                        name="trabajoSimultaneo"
-                                                        value="no"
-                                                        className="ms-2"
-                                                        onChange={() => handleTrabajoSimultaneoChange(false)}
-                                                    /> No
-                                                </FormGroup>
+                                                <div>
+                                                    <FormGroup>
+                                                        <Label>¿Existen trabajos en simultáneo?</Label><br />
+                                                        <Input
+                                                            type="radio"
+                                                            name="trabajoSimultaneo"
+                                                            value="si"
+                                                            onChange={() => handleTrabajoSimultaneoChange(true)}
+                                                        /> Sí
+                                                        <Input
+                                                            type="radio"
+                                                            name="trabajoSimultaneo"
+                                                            value="no"
+                                                            className="ms-2"
+                                                            onChange={() => handleTrabajoSimultaneoChange(false)}
+                                                        /> No
+                                                    </FormGroup>
+                                                    
+                                                    {alertVisible && (
+                                                        <Alert color="danger">
+                                                            Por favor, seleccione si existen trabajos simultáneos.
+                                                        </Alert>
+                                                    )}
+                                                </div>
                                             </Col>
                                             <Col md="4"></Col>
                                         </Row>
@@ -624,14 +664,60 @@ export function FormularioART({ actNombre }) {
     
                                         <Card className="mb-4">
                                             <CardBody>
-                                                <h5>Confirmo que estoy en condiciones de hacer el trabajo</h5>
-                                                <FormGroup>
-                                                    <Input type="radio" name="estadoTrabajador" value="true" onChange={handleEstadoTrabajadorChange} /> Sí
-                                                    <Input type="radio" name="estadoTrabajador" value="false" className="ms-2" onChange={handleEstadoTrabajadorChange} /> No
-                                                </FormGroup>
+                                                <div>
+                                                    <h5>Confirmo que estoy en condiciones de hacer el trabajo</h5>
+                                                    <FormGroup>
+                                                        <Input type="radio" name="estadoTrabajador" value="true" onChange={handleEstadoTrabajadorChange} /> Sí
+                                                        <Input type="radio" name="estadoTrabajador" value="false" className="ms-2" onChange={handleEstadoTrabajadorChange} /> No
+                                                    </FormGroup>
+                                                    {alertVisibleCon && (
+                                                        <Alert color="danger">
+                                                            Por favor, seleccione si una opción.
+                                                        </Alert>
+                                                        )}
+                                                </div>
                                             </CardBody>
                                         </Card>
                                         {alertMessage && <Alert color={alertMessage.type}>{alertMessage.text}</Alert>}
+                                        <Card>
+                                        <div className="text-center">
+                                                <h4>
+                                                    Empleados a Cargo activos de: {worker.emp_supervisorAcargo}
+                                                </h4>
+                                                <Table size="sm" striped>
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Nombre</th>
+                                                            <th>Rut </th>
+                                                            <th>Seleccionar </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {empleados.map((empleado) => (
+                                                            <tr key={empleado.emp_rut}>
+                                                            <td>{empleado.emp_nombre}</td>
+                                                            <td>{empleado.emp_rut}</td>
+                                                            <td>
+                                                                <input
+                                                                type="checkbox"
+                                                                onChange={() => handleCheckboxChange(empleado)}
+                                                                disabled={!trabajoSimultaneo}
+                                                                />
+                                                            </td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </Table>
+                                                <h3>Seleccionados:</h3>
+                                                <ul>
+                                                    {selectedEmpleados.map((empleado) => (
+                                                    <li key={empleado.emp_rut}>
+                                                        {empleado.emp_nombre} ({empleado.emp_rut})
+                                                    </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        </Card>
                                         <Button type="submit" disabled={isSubmitting || isSubmitted}>
                                             {isSubmitting ? "Enviando..." : isSubmitted ? "Enviado" : "Enviar"}
                                         </Button>

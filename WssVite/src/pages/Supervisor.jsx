@@ -1,44 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Container, Row, Col, Form, FormGroup, Label, Input, Card, CardBody, Nav, NavItem, NavLink, Button, TabPane, TabContent, CardTitle, CardText, Offcanvas, OffcanvasHeader, OffcanvasBody, Alert, Table} from 'reactstrap';
 import './Supervisor.css';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import Swal from 'sweetalert2';
 
-const RiesgoCritico = ({ riesgo, handleRiesgoChange }) => (
-    <Card className="mb-4">
-        <CardBody>
-            <h5>{riesgo.rc_nombre}</h5>
-            <FormGroup>
-                <Label>Código del Riesgo</Label>
-                <Input type="text" value={riesgo.rc_id} disabled />
-            </FormGroup>
-            {[...Array(Number(riesgo.rc_pregunta))].map((_, index) => (
-                <FormGroup key={index}>
-                    <Label>N°{index + 1}</Label>
-                    <div>
-                        <Input
-                            type="radio"
-                            name={`riesgo${riesgo.rc_id}_pregunta${index}`}
-                            value="si"
-                            onChange={() => handleRiesgoChange(index, riesgo.rc_id, 'si')}
-                        /> Sí
-                        <Input
-                            type="radio"
-                            name={`riesgo${riesgo.rc_id}_pregunta${index}`}
-                            value="no"
-                            className="ms-2"
-                            onChange={() => handleRiesgoChange(index, riesgo.rc_id, 'no')}
-                        /> No
-                    </div>
-                </FormGroup>
-            ))}
-        </CardBody>
-    </Card>
-);
-
-// Componente para las preguntas transversales
-const PreguntasTransversales = ({ handleChange }) => {
+const PreguntasTransversales = ({ handleChange, handleShowText }) => {
     const preguntas = [
         "¿El trabajo que asignaré cuenta con un estándar, procedimiento y/o instructivo?",
         "¿El personal que asignaré para realizar el trabajo, cuenta con las capacitaciones, competencias, salud compatible y/o acreditaciones requeridas?",
@@ -48,27 +16,180 @@ const PreguntasTransversales = ({ handleChange }) => {
         " ¿El personal que asignaré para realizar el trabajo, cuenta con los EPP definidos en el procedimiento de trabajo?"
     ];
 
+    const [respuestas, setRespuestas] = useState({});
+    const [warnings, setWarnings] = useState([]);
+
+    useEffect(() => {
+        const noRespondidas = preguntas
+            .map((_, index) => `preguntaTransversal${index + 1}`)
+            .filter((name) => !(name in respuestas));
+        setWarnings(noRespondidas);
+
+        // Ocultar el campo de texto si todas son "sí"
+        const allYes = preguntas.every(
+            (_, index) => respuestas[`preguntaTransversal${index + 1}`] === "si"
+        );
+        if (allYes) handleShowText(false);
+    }, [respuestas]);
+
+    const handleSelectionChange = (name, value) => {
+        setRespuestas((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
+        handleChange({ target: { name, value } });
+
+        if (value === "no") handleShowText(true);
+    };
+
     return (
         <>
-            {preguntas.map((pregunta, index) => (
-                <FormGroup key={index}>
-                    <Label>{pregunta}</Label>
-                    <div>
-                        <Input type="radio" name={`preguntaTransversal${index + 1}`} value="si" onChange={handleChange} /> Sí
-                        <Input type="radio" name={`preguntaTransversal${index + 1}`} value="no" className="ms-2" onChange={handleChange} /> No
-                    </div>
-                </FormGroup>
-            ))}
+            <h2 className="text-center">Preguntas Transversales del Supervisor</h2>
+            {preguntas.map((pregunta, index) => {
+                const name = `preguntaTransversal${index + 1}`;
+                return (
+                    <FormGroup key={name}>
+                        <Label>{pregunta}</Label>
+                        <div>
+                            <Input
+                                type="radio"
+                                name={name}
+                                value="si"
+                                onChange={(e) => handleSelectionChange(name, e.target.value)}
+                                checked={respuestas[name] === "si"}
+                            />{" "}
+                            Sí
+                            <Input
+                                type="radio"
+                                name={name}
+                                value="no"
+                                className="ms-2"
+                                onChange={(e) => handleSelectionChange(name, e.target.value)}
+                                checked={respuestas[name] === "no"}
+                            />{" "}
+                            No
+                        </div>
+                        {warnings.includes(name) && (
+                            <div className="text-danger mt-1">Por favor, selecciona una respuesta.</div>
+                        )}
+                    </FormGroup>
+                );
+            })}
+            {warnings.length > 0 && (
+                <Alert color="danger" className="mt-3">
+                    Hay preguntas sin responder. Por favor, responde todas antes de continuar.
+                </Alert>
+            )}
         </>
     );
 };
 
+const RiesgoCritico = ({ riesgo, handleRiesgoChange, handleShowText }) => {
+    const [respuestas, setRespuestas] = useState({});
+    const [warnings, setWarnings] = useState([]);
+
+    const handleSelectionChange = (index, value) => {
+        setRespuestas((prev) => ({
+            ...prev,
+            [index]: value,
+        }));
+
+        handleRiesgoChange(index, riesgo.rc_id, value);
+
+        if (value === "no") handleShowText(true);
+    };
+
+    useEffect(() => {
+        const noRespondidas = [...Array(Number(riesgo.rc_pregunta))]
+            .map((_, index) => index)
+            .filter((index) => !respuestas[index]);
+        setWarnings(noRespondidas);
+
+        // Ocultar el campo de texto si todas son "sí"
+        const allYes = [...Array(Number(riesgo.rc_pregunta))].every(
+            (_, index) => respuestas[index] === "si"
+        );
+        if (allYes) handleShowText(false);
+    }, [respuestas, riesgo.rc_pregunta]);
+
+    return (
+        <Card className="mb-4">
+            <CardBody>
+                <h5 className="text-center">{riesgo.rc_nombre}</h5>
+                <FormGroup>
+                    <Label>Código del Riesgo:</Label>
+                    <Input type="text" value={riesgo.rc_id} disabled />
+                </FormGroup>
+                {[...Array(Number(riesgo.rc_pregunta))].map((_, index) => (
+                    <FormGroup key={index}>
+                        <Label>Pregunta N°{index + 1}:</Label>
+                        <div>
+                            <Input
+                                type="radio"
+                                name={`riesgo${riesgo.rc_id}_pregunta${index}`}
+                                value="si"
+                                onChange={() => handleSelectionChange(index, "si")}
+                            />{" "}
+                            Sí
+                            <Input
+                                type="radio"
+                                name={`riesgo${riesgo.rc_id}_pregunta${index}`}
+                                value="no"
+                                className="ms-2"
+                                onChange={() => handleSelectionChange(index, "no")}
+                            />{" "}
+                            No
+                        </div>
+                        {warnings.includes(index) && (
+                            <div className="text-danger mt-1">
+                                Por favor, selecciona una respuesta.
+                            </div>
+                        )}
+                    </FormGroup>
+                ))}
+                {warnings.length > 0 && (
+                    <Alert color="danger" className="mt-3">
+                        Hay preguntas sin responder. Por favor, responde todas.
+                    </Alert>
+                )}
+            </CardBody>
+        </Card>
+    );
+};
+
 export function Supervisor() {
+
+    const [showTextInput, setShowTextInput] = useState(false);
+    const [textInputValue, setTextInputValue] = useState("");
+
+    const handleShowText = (show) => {
+        setShowTextInput(show);
+        if (!show) setTextInputValue(""); // Borrar el contenido del texto
+    };
+
+    const handleTextChange = (e) => {
+        const value = e.target.value;
+        // Limitar el texto a 185 caracteres
+        if (value.length <= 185) {
+            setTextInputValue(value);
+        }
+    };
+
+    const navigate = useNavigate();
     const { userRut } = useParams();
     console.log(userRut);
 
+    const [rutFilter, setRutFilter] = useState('');
+    const [dateFilter, setDateFilter] = useState('');
+
+    const [estadoTrabajador, setEstadoTrabajador] = useState(null);
+
+    const [rutFilterTarVerde, setRutFilterTarVerde] = useState('');
+    const [dateFilterTarVerde, setDateFilterTarVerde] = useState('');
+
     const [riesgosCriticos, setRiesgosCriticos] = useState([]);
     const [empleadosTrab, setEmpleadosTrab] = useState([]);
+
     const [formData, setFormData] = useState({});
     const [transversalData, setTransversalData] = useState({});
     const [isLoading, setIsLoading] = useState(true);
@@ -76,6 +197,8 @@ export function Supervisor() {
     const [actividadSeleccionada, setActividadSeleccionada] = useState("");
     const [empleadosSeleccionados, setEmpleadosSeleccionados] = useState([]);
     const [actividadRellenarSeleccionada, setActividadRellenarSeleccionada] = useState("");
+
+    const [alertVisibleCon, setAlertVisibleCon] = useState(true);
 
     const handleSelectChangerellenar = async (event) => {
         const selectedActivity = event.target.value;
@@ -97,6 +220,11 @@ export function Supervisor() {
     
     const handleSelectChangeAct = (event) => {
         setActividadSeleccionada(event.target.value);
+    };
+
+    const handleEstadoTrabajadorChange = (e) => {
+        setEstadoTrabajador(e.target.value === 'true');
+        setAlertVisibleCon(false)
     };
 
     const handleCheckboxChange = (rut) => {
@@ -148,25 +276,49 @@ export function Supervisor() {
     
         console.log("Datos que se van a enviar:", data);
     
+        // Unir las respuestas transversales, de riesgos críticos y el estado del trabajador
+        const todasLasRespuestas = [
+            ...preguntas_transversales.map((resp) => ({ respuesta: resp.respuestaTrans })), // Respuestas de las preguntas transversales
+            ...respuestas_riesgo.map((resp) => ({ respuesta: resp.respuesta })), // Respuestas de los riesgos críticos
+            { respuesta: estadoTrabajador === false ? false : true } // Respuesta de estado trabajador
+        ];
+    
+        // Verificar si alguna respuesta es false
+        const artEstado = todasLasRespuestas.some((respuesta) => respuesta.respuesta === false)
+            ? "tarjeta verde" + (textInputValue ? "\n" + textInputValue : "")
+            : "Completado"; // Si alguna respuesta es "false", se usa "tarjeta verde"
+    
         try {
             // Enviar los datos al backend
             const response = await axios.post(`http://127.0.0.1:8000/api/art/regisRespArtSuper/`, data);
             setAlertMessage({ type: 'success', text: 'Formulario enviado exitosamente.' });
             console.log('ART creada:', response.data);
     
-            // Cambiar el estado de la ART a "Completado"
-            try {
-                await axios.patch(`http://127.0.0.1:8000/api/art/Estado/${art_id}/`, { art_estado: "Completado" });
-                // Actualizar el estado local para reflejar el cambio de estado
-                setArts((prevArts) =>
-                    prevArts.map((art) =>
-                        art.art_id === art_id ? { ...art, art_estado: "Completado" } : art
-                    )
-                );
-                console.log(`Estado de ART ${art_id} cambiado a "Completado"`);
-            } catch (error) {
-                console.error('Error al cambiar el estado de la ART:', error);
-            }
+            // Cambiar el estado de la ART según la lógica anterior
+            await axios.patch(`http://127.0.0.1:8000/api/art/Estado/${art_id}/`, { art_estado: artEstado });
+    
+            // **Actualizar el campo art_estado_Super**
+            await axios.patch(`http://127.0.0.1:8000/api/art/editarEstadoSuper/${art_id}/`, { art_estado_Super: estadoTrabajador });
+    
+            // Actualizar el estado local para reflejar el cambio de estado
+            setArtsRev((prevArts) =>
+                prevArts.map((art) =>
+                    art.art_id === art_id ? { ...art, art_estado: artEstado, art_estado_Super: estadoTrabajador } : art
+                )
+            );
+            console.log(`Estado de ART ${art_id} cambiado a "${artEstado}" y art_estado_Super a "${estadoTrabajador}"`);
+    
+            setTimeout(() => {
+                axios
+                    .get('http://127.0.0.1:8000/api/art/ArtRealizadas/')
+                    .then((response) => {
+                        const artRevisado = response.data.filter(art => art.art_estado === "Pendiente");
+                        setArtsRev(artRevisado);
+                    })
+                    .catch((error) => {
+                        console.error('Error al actualizar las ARTs:', error);
+                    });
+            }, 5000);
         } catch (error) {
             console.error('Error al crear ART:', error);
             setAlertMessage({ type: 'danger', text: 'Error al enviar el formulario. Intente nuevamente.' });
@@ -206,7 +358,12 @@ export function Supervisor() {
                 )
             );
 
-            alert('Actividades actualizadas correctamente');
+            await Swal.fire({
+                title: '¡Éxito!',
+                text: 'Actividades actualizadas correctamente',
+                icon: 'success',
+                confirmButtonText: 'Aceptar',
+            });
             setEmpleadosSeleccionados([]); // Limpiar la selección
         } catch (error) {
             console.error('Error al actualizar actividades:', error);
@@ -214,31 +371,15 @@ export function Supervisor() {
         }
     };
 
-    useEffect(() => {
-        const fetchEmpleadosTrab = async () => {
-            try {
-                const response = await axios.get('http://127.0.0.1:8000/api/personal/EmpleadosCargo/Trabajador');
-                setEmpleadosTrab(response.data);
-            } catch (error) {
-                console.error('Error al obtener trabajadores:', error);
-            }
-        };
-
-        fetchEmpleadosTrab();
-
-        const intervalId = setInterval(() => {
-            fetchEmpleadosTrab();
-        }, 10000); // Actualiza cada 10 segundos
-
-        return () => clearInterval(intervalId);
-    }, []);
-
     // Define el estado para los datos del trabajador
     const [worker, setWorker] = useState({
         emp_nombre: '',
         emp_direccion: '',
         emp_telefono: '',
-        emp_correo: ''
+        emp_correo: '',
+        emp_especialidad: '',
+        emp_actividad: '',
+        emp_presente: true,  // Inicializado en true para que la lógica funcione
     });
     const [error, setError] = useState(null);
 
@@ -246,15 +387,54 @@ export function Supervisor() {
     useEffect(() => {
         const fetchWorkerData = async () => {
             try {
-                // Asegúrate de que las comillas sean invertidas para la interpolación
-                const response = await axios.get(`http://127.0.0.1:8000/api/personal/Empleado/${userRut}`);
-                setWorker(response.data);  // Actualiza el estado con los datos del trabajador
+                // Hacemos la solicitud a la API para obtener los datos del trabajador
+                const response = await axios.get(`http://localhost:8000/api/personal/Empleado/${userRut}`);
+                
+                // Verificar si el trabajador está presente
+                if (response.data.emp_presente === false) {
+                    setWorker({ ...response.data, emp_presente: false });
+                } else {
+                    setWorker(response.data);  // Actualiza el estado con los datos del trabajador
+                }
             } catch (err) {
                 setError('Error al obtener los datos del trabajador');
             }
         };
+        
+        // Llamada inicial para obtener los datos
         fetchWorkerData();
-    }, [userRut]);
+
+        // Configurar intervalo para verificar el estado de emp_presente cada 10 segundos
+        const intervalId = setInterval(() => {
+            fetchWorkerData();
+        }, 2000); // 10 segundos de intervalo
+
+        // Limpiar el intervalo cuando el componente se desmonte
+        return () => clearInterval(intervalId);
+    }, [userRut]);  // Re-ejecutar cuando cambie emp_rut
+
+    // Si emp_presente es false, mostrar solo mensaje y botón para iniciar sesión
+
+    useEffect(() => {
+        if (worker.emp_nombre) {
+            const fetchEmpleadosTrab = async () => {
+                try {
+                    const response = await axios.get(`http://127.0.0.1:8000/api/personal/EmpleadosCargoSuper/${worker.emp_nombre}`);
+                    setEmpleadosTrab(response.data);
+                } catch (error) {
+                    console.error('Error al obtener trabajadores:', error);
+                }
+            };
+    
+            fetchEmpleadosTrab();
+    
+            const intervalId = setInterval(() => {
+                fetchEmpleadosTrab();
+            }, 10000); // Actualiza cada 10 segundos
+    
+            return () => clearInterval(intervalId);
+        }
+    }, [worker.emp_nombre]);
 
     const [activeTab, setActiveTab] = useState("1");
 
@@ -285,20 +465,34 @@ export function Supervisor() {
     const [artsCom, setArtsCom] = useState([]);
 
     useEffect(() => {
-        axios.get('http://127.0.0.1:8000/api/art/ArtRealizadas/')
-            .then((response) => {
-                const artVerdes = response.data.filter(art => art.art_estado === "tarjeta verde");
-                const artRevisado = response.data.filter(art => art.art_estado === "Pendiente");
-                const artCompleto = response.data.filter(art => art.art_estado === "Completado");
-                
-                setArts(artVerdes);
-                setArtsRev(artRevisado);
-                setArtsCom(artCompleto)
-            })
-            .catch((error) => {
-                console.error('Error al obtener las ARTs:', error);
-            });
-    }, []);
+        if (worker.emp_nombre) {
+            const fetchArt = () => {
+                axios.get(`http://127.0.0.1:8000/api/art/ArtRealizadas/${worker.emp_nombre}`)
+                    .then((response) => {
+                        const artVerdes = response.data.filter(art => art.art_estado !== "Pendiente" && art.art_estado !== "Completado");
+                        const artRevisado = response.data.filter(art => art.art_estado === "Pendiente");
+                        const artCompleto = response.data.filter(art => art.art_estado === "Completado");
+                        
+                        setArts(artVerdes);
+                        setArtsRev(artRevisado);
+                        setArtsCom(artCompleto);
+                    })
+                    .catch((error) => {
+                        console.error('Error al obtener las ARTs:', error);
+                    });
+            };
+    
+            // Ejecutar la primera vez
+            fetchArt();
+    
+            const intervalId = setInterval(() => {
+                fetchArt();
+            }, 2500); // Actualiza cada 2.5 segundos
+    
+            // Limpiar el intervalo cuando el componente se desmonte
+            return () => clearInterval(intervalId);
+        }
+    }, [worker.emp_nombre]); // Dependencia de emp_nombre
 
     const handleChangeState = (artId) => {
         axios
@@ -316,16 +510,56 @@ export function Supervisor() {
         };
 
         const handleDescargarPDF = (artId) => {
-            // Generar la URL del PDF (aquí asumimos que el endpoint es /api/obtenerArt/{art_id}/)
+            // Generar la URL del PDF 
             const url = `http://127.0.0.1:8000/api/art/ObtenerArt/${artId}/`;
         
             // Abrir el PDF en una nueva pestaña
             window.open(url, '_blank');
         };
 
+    const filteredArts = artsCom.filter((art) => {
+        const matchesRut = rutFilter
+            ? art.empleados.some((empleado) =>
+                    empleado.rut.toLowerCase().includes(rutFilter.toLowerCase())
+                )
+            : true;
+
+        const matchesDate = dateFilter
+            ? art.art_fecha === dateFilter
+            : true;
+
+        return matchesRut && matchesDate;
+    });
+
+    const filteredArtsTarVerde = arts.filter((art) => {
+        const matchesRut = rutFilter
+            ? art.empleados.some((empleado) =>
+                    empleado.rut.toLowerCase().includes(rutFilter.toLowerCase())
+                )
+            : true;
+
+        const matchesDate = dateFilter
+            ? art.art_fecha === dateFilter
+            : true;
+
+        return matchesRut && matchesDate;
+    });
+
+    if (worker.emp_presente === false) {
+        return (
+            <Container className="mt-3 contSuper">
+                <Row>
+                    <Col>
+                        <Alert color="danger">Tu sesión ha expirado. Por favor, vuelve a iniciar sesión.</Alert>
+                        <Button color="primary" onClick={() => navigate('/InicioSesion')}>Volver a iniciar sesión</Button>
+                    </Col>
+                </Row>
+            </Container>
+        );
+    }
+
     return (
         <Container className="mt-3 contSuper">
-
             <div>
                 <Offcanvas isOpen={isOffcanvasOpen} toggle={toggleOffcanvas}>
                     <OffcanvasHeader toggle={toggleOffcanvas}>
@@ -466,7 +700,7 @@ export function Supervisor() {
                                                 <option value="Lavado de material">Lavado de material</option>
                                                 <option value="Lecturas en equipo de A.A.">Lecturas en equipo de A.A.</option>
                                                 <option value="Masado de muestras">Masado de muestras</option>
-                                                <option value="Digestion acida de muestras">Digestion acida de muestras</option>
+                                                <option value="Digestión acida de muestras">Digestión acida de muestras</option>
                                                 <option value="Lixiviaxión de muestras">Lixiviaxión de muestras</option>
                                                 <option value="sin actividad">sin actividad</option>
                                             </Input>
@@ -538,94 +772,180 @@ export function Supervisor() {
                                                     <option value="Lavado de material">Lavado de material</option>
                                                 <option value="Lecturas en equipo de A.A.">Lecturas en equipo de A.A.</option>
                                                 <option value="Masado de muestras">Masado de muestras</option>
-                                                <option value="Digestion acida de muestras">Digestion acida de muestras</option>
+                                                <option value="Digestión acida de muestras">Digestión acida de muestras</option>
                                                 <option value="Lixiviaxión de muestras">Lixiviaxión de muestras</option>
                                                 </Input>
                                             </Col>
                                         </FormGroup>
-                                            <h3 className="text-center">Preguntas transversales</h3>
+                                            
                                         <Card className="w-100">
                                         <Row>
-                                            <Col sm="2"></Col>
-                                            <Col sm="8">
-                                                <Form onSubmit={(e) => e.preventDefault()}>
-                                                    <PreguntasTransversales handleChange={handleTransversalChange} />
-                                                    <Row>
-                                                        <h3 className="text-center" >Riesgos criticos</h3>
-                                                        {riesgosCriticos.map((riesgo) => (
-                                                            <RiesgoCritico
-                                                                key={riesgo.rc_id}
-                                                                riesgo={riesgo}
-                                                                handleRiesgoChange={handleRiesgoChange}
-                                                            />
-                                                        ))}
-                                                    </Row>
-                                                    <Row>
-                                                        <Card>
-                                                            <div className="text-center">
-                                                                <Table size="sm" striped style={{ width: '100%' }}>
-                                                                    <thead>
-                                                                        <tr>
-                                                                            <th>Nombre Empleado</th>
-                                                                            <th>Hora Inicio</th>
-                                                                            <th>Turno</th>
-                                                                            <th>Fecha</th>
-                                                                            <th>Actividad ART</th>
-                                                                            <th>Estado</th>
-                                                                            <th>Acciones</th>
-                                                                        </tr>
-                                                                    </thead>
-                                                                    <tbody>
-                                                                        {artsRev
-                                                                            .filter((art) =>
-                                                                                actividadRellenarSeleccionada === "" ||
-                                                                                art.actividades.some((actividad) =>
-                                                                                    actividad.nombre.toLowerCase().includes(actividadRellenarSeleccionada.toLowerCase())
-                                                                                )
-                                                                            )
-                                                                            .map((art) => (
-                                                                                <tr key={art.art_id}>
-                                                                                    <td>{art.empleados[0]?.nombre}</td>
-                                                                                    <td>{art.hora_inicio}</td>
-                                                                                    <td>{art.hora_fin}</td>
-                                                                                    <td>{art.art_fecha}</td>
-                                                                                    <td>
-                                                                                        {art.actividades.map((actividad, index) => (
-                                                                                            <div key={index}>
-                                                                                                {actividad.nombre}
-                                                                                            </div>
-                                                                                        ))}
-                                                                                    </td>
-                                                                                    <td>{art.art_estado}</td>
-                                                                                    <td>
-                                                                                        <button
-                                                                                            type="button"
-                                                                                            color="primary"
-                                                                                            className="mt-3"
-                                                                                            onClick={() => handleSubmit(art.art_id)}
-                                                                                        >
-                                                                                            Completar
-                                                                                        </button>
-                                                                                    </td>
-                                                                                </tr>
-                                                                            ))}
-                                                                    </tbody>
-                                                                </Table>
-                                                            </div>
-                                                        </Card>
-                                                    </Row>
-                                                </Form>
+                                            <Col md="2"></Col>
+                                            <Col md="8">
+                                                <PreguntasTransversales
+                                                    handleChange={handleTransversalChange}
+                                                    handleShowText={handleShowText}
+                                                />
+                                                <h3 className="text-center" >Riesgos criticos</h3>
+        
+                                                {riesgosCriticos.map((riesgo) => (
+                                                    <RiesgoCritico
+                                                        key={riesgo.rc_id}
+                                                        riesgo={riesgo}
+                                                        handleRiesgoChange={handleRiesgoChange}
+                                                        handleShowText={handleShowText}
+                                                    />
+                                                ))}
+
+                                                {showTextInput && (
+                                                    <FormGroup className="mt-3">
+                                                        <Label>Por favor, describe el motivo:</Label>
+                                                        <Input
+                                                            type="textarea"
+                                                            maxLength={185} // Limitar a 185 caracteres
+                                                            value={textInputValue}
+                                                            onChange={handleTextChange}
+                                                        />
+                                                        <div className="text-muted mt-2">
+                                                            {185 - textInputValue.length} caracteres restantes
+                                                        </div>
+                                                    </FormGroup>
+                                                )}
                                             </Col>
-                                            <Col sm="2"></Col>
+                                            <Col md="2"></Col>
+
+                                            <Row>
+                                                <Col md="2"></Col>
+                                                <Col md="8">
+                                                    <Card className="mb-4">
+                                                        <CardBody>
+                                                            <div>
+                                                                <h5>Confirmo que estoy en condiciones de hacer el trabajo</h5>
+                                                                <FormGroup>
+                                                                    <Input type="radio" name="estadoTrabajador" value="true" onChange={handleEstadoTrabajadorChange} /> Sí
+                                                                    <Input type="radio" name="estadoTrabajador" value="false" className="ms-2" onChange={handleEstadoTrabajadorChange} /> No
+                                                                </FormGroup>
+                                                                {alertVisibleCon && (
+                                                                    <Alert color="danger">
+                                                                        Por favor, seleccione si una opción.
+                                                                    </Alert>
+                                                                )}
+                                                            </div>
+                                                        </CardBody>
+                                                    </Card>
+                                                        {alertMessage && <Alert color={alertMessage.type}>{alertMessage.text}</Alert>}
+                                                </Col>
+                                                <Col md="2"></Col>
+                                            </Row>
+
+                                            <Col sm="12">
+                                                <Row>
+                                                    <Card>
+                                                        <div className="text-center" >
+                                                            <Table size="sm" striped style={{ width: '100%' }}>
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>Nombre Empleado(s)</th>
+                                                                        <th>Rut Empleado(s)</th>
+                                                                        <th>Hora Inicio</th>
+                                                                        <th>Turno</th>
+                                                                        <th>Fecha</th>
+                                                                        <th>Actividad ART</th>
+                                                                        <th>Estado</th>
+                                                                        <th>Acciones</th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {artsRev
+                                                                        .filter((art) =>
+                                                                            actividadRellenarSeleccionada === "" ||
+                                                                            art.actividades.some((actividad) =>
+                                                                                actividad.nombre.toLowerCase().includes(actividadRellenarSeleccionada.toLowerCase())
+                                                                            )
+                                                                        )
+                                                                        .map((art) => (
+                                                                            <tr key={art.art_id}>
+                                                                                <td>
+                                                                                    <ul>
+                                                                                        {art.empleados.map((empleado, index) => (
+                                                                                            <li key={index}>{empleado.nombre}</li>
+                                                                                        ))}
+                                                                                    </ul>
+                                                                                </td>
+                                                                                <td>
+                                                                                    <ul>
+                                                                                        {art.empleados.map((empleado, index) => (
+                                                                                            <li key={index}>{empleado.rut}</li>
+                                                                                        ))}
+                                                                                    </ul>
+                                                                                </td>
+                                                                                <td>{art.hora_inicio}</td>
+                                                                                <td>
+                                                                                    {(() => {
+                                                                                        const horaFinStr = art.hora_fin; // Hora en formato HH:mm:ss.ffffff
+                                                                                        const horaFin = new Date(`1970-01-01T${horaFinStr}Z`); // Agregar una fecha ficticia
+                                                                                        if (isNaN(horaFin.getTime())) {
+                                                                                            return 'Hora no válida';
+                                                                                        }
+                                                                                        const hora = horaFin.getUTCHours(); // Usar UTC porque se asume formato ISO con "Z"
+                                                                                        return hora >= 0 && hora < 12 ? 'Noche' : 'Día';
+                                                                                    })()}
+                                                                                </td>
+                                                                                <td>{art.art_fecha}</td>
+                                                                                <td>
+                                                                                    {art.actividades.map((actividad, index) => (
+                                                                                        <div key={index}>
+                                                                                            {actividad.nombre}
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </td>
+                                                                                <td>{art.art_estado}</td>
+                                                                                <td>
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        color="primary"
+                                                                                        className="mt-3"
+                                                                                        onClick={() => handleSubmit(art.art_id)}
+                                                                                    >
+                                                                                        Completar
+                                                                                    </button>
+                                                                                </td>
+                                                                            </tr>
+                                                                        ))}
+                                                                </tbody>
+                                                            </Table>
+                                                        </div>
+                                                    </Card>
+                                                </Row>
+                                            </Col>
                                         </Row>
                                         </Card>
                                     </Row>
                                 </TabPane>
                                 <TabPane tabId="4">
+                                    {/* Filtros */}
+                                    <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
+                                        <input
+                                            type="text"
+                                            placeholder="Filtrar por RUT"
+                                            value={rutFilter}
+                                            onChange={(e) => setRutFilter(e.target.value)}
+                                            style={{ padding: '0.5rem', flex: 1 }}
+                                        />
+                                        <input
+                                            type="date"
+                                            value={dateFilter}
+                                            onChange={(e) => setDateFilter(e.target.value)}
+                                            style={{ padding: '0.5rem', flex: 1 }}
+                                        />
+                                    </div>
+
+                                    {/* Tabla */}
                                     <Table size="sm" striped style={{ width: '100%' }}>
                                         <thead>
                                             <tr>
-                                                <th>Nombre Empleado</th>
+                                                <th>Nombre Empleado(s)</th>
+                                                <th>Rut Empleado(s)</th>
                                                 <th>Hora Inicio</th>
                                                 <th>Turno</th>
                                                 <th>Fecha</th>
@@ -635,17 +955,38 @@ export function Supervisor() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {artsCom.map((art) => (
+                                            {filteredArts.map((art) => (
                                                 <tr key={art.art_id}>
-                                                    <td>{art.empleados[0]?.nombre}</td>
+                                                    <td>
+                                                        <ul>
+                                                            {art.empleados.map((empleado, index) => (
+                                                                <li key={index}>{empleado.nombre}</li>
+                                                            ))}
+                                                        </ul>
+                                                    </td>
+                                                    <td>
+                                                        <ul>
+                                                            {art.empleados.map((empleado, index) => (
+                                                                <li key={index}>{empleado.rut}</li>
+                                                            ))}
+                                                        </ul>
+                                                    </td>
                                                     <td>{art.hora_inicio}</td>
-                                                    <td>{art.hora_fin}</td>
+                                                    <td>
+                                                        {(() => {
+                                                            const horaFinStr = art.hora_fin;
+                                                            const horaFin = new Date(`1970-01-01T${horaFinStr}Z`);
+                                                            if (isNaN(horaFin.getTime())) {
+                                                                return 'Hora no válida';
+                                                            }
+                                                            const hora = horaFin.getUTCHours();
+                                                            return hora >= 0 && hora < 12 ? 'Noche' : 'Día';
+                                                        })()}
+                                                    </td>
                                                     <td>{art.art_fecha}</td>
                                                     <td>
                                                         {art.actividades.map((actividad, index) => (
-                                                            <div key={index}>
-                                                                {actividad.nombre}
-                                                            </div>
+                                                            <div key={index}>{actividad.nombre}</div>
                                                         ))}
                                                     </td>
                                                     <td>{art.art_estado}</td>
@@ -666,11 +1007,29 @@ export function Supervisor() {
                                 <TabPane tabId="5">
                                     <Row>
                                         <Card>
+                                            <div style={{ marginBottom: '1rem', display: 'flex', gap: '1rem' }}>
+                                                <input
+                                                    type="text"
+                                                    placeholder="Filtrar por RUT"
+                                                    value={rutFilterTarVerde}
+                                                    onChange={(e) => setRutFilterTarVerde(e.target.value)}
+                                                    style={{ padding: '0.5rem', flex: 1 }}
+                                                />
+                                                <input
+                                                    type="date"
+                                                    value={dateFilterTarVerde}
+                                                    onChange={(e) => setDateFilterTarVerde(e.target.value)}
+                                                    style={{ padding: '0.5rem', flex: 1 }}
+                                                />
+                                            </div>
                                             <div className="text-center">
                                                 <Table size="sm" striped style={{ width: '100%' }}>
                                                     <thead>
                                                         <tr>
-                                                            <th>Nombre Empleado</th>
+                                                            <th>Nombre Empleado(s)</th>
+                                                            <th>Rut Empleado(s)</th>
+                                                            <th>Hora Inicio</th>
+                                                            <th>Turno</th>
                                                             <th>Fecha</th>
                                                             <th>Actividad ART</th>
                                                             <th>Estado</th>
@@ -678,24 +1037,57 @@ export function Supervisor() {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {arts.map((art) => (
+                                                        {filteredArtsTarVerde.map((art) => (
                                                             <tr key={art.art_id}>
-                                                                <td>{art.empleados[0]?.nombre}</td>
+                                                                <td>
+                                                                    <ul>
+                                                                        {art.empleados.map((empleado, index) => (
+                                                                            <li key={index}>{empleado.nombre}</li>
+                                                                        ))}
+                                                                    </ul>
+                                                                </td>
+                                                                <td>
+                                                                    <ul>
+                                                                        {art.empleados.map((empleado, index) => (
+                                                                            <li key={index}>{empleado.rut}</li>
+                                                                        ))}
+                                                                    </ul>
+                                                                </td>
+                                                                <td>{art.hora_inicio}</td>
+                                                                <td>
+                                                                    {(() => {
+                                                                        const horaFinStr = art.hora_fin;
+                                                                        const horaFin = new Date(`1970-01-01T${horaFinStr}Z`);
+                                                                        if (isNaN(horaFin.getTime())) {
+                                                                            return 'Hora no válida';
+                                                                        }
+                                                                        const hora = horaFin.getUTCHours();
+                                                                        return hora >= 0 && hora < 12 ? 'Noche' : 'Día';
+                                                                    })()}
+                                                                </td>
                                                                 <td>{art.art_fecha}</td>
                                                                 <td>
                                                                     {art.actividades.map((actividad, index) => (
-                                                                        <div key={index}>
-                                                                            {actividad.nombre}
-                                                                        </div>
+                                                                        <div key={index}>{actividad.nombre}</div>
                                                                     ))}
                                                                 </td>
-                                                                <td>{art.art_estado}</td>
                                                                 <td>
-                                                                    <button color="primary"
-                                                                            size="sm" 
-                                                                            onClick={() => handleChangeState(art.art_id, art.art_estado)}>
-                                                                        Cambiar Estado
-                                                                    </button>
+                                                                    {art.art_estado.split('\n').map((line, index) => {
+                                                                        if (index === 0) {
+                                                                            // Primera línea con los dos puntos y espacio antes del salto de línea
+                                                                            return <span key={index}>{line} : </span>;
+                                                                        }
+                                                                        return <span key={index} style={{ marginLeft: '20px' }}>"{line}"</span>; // Segunda línea entre comillas y con margen
+                                                                    })}
+                                                                </td>
+                                                                <td>
+                                                                <button
+                                                                    color="primary"
+                                                                    size="sm"
+                                                                    onClick={() => handleDescargarPDF(art.art_id)}
+                                                                >
+                                                                    Descargar
+                                                                </button>
                                                                 </td>
                                                             </tr>
                                                         ))}

@@ -17,7 +17,8 @@ export function Trabajador() {
         emp_telefono: '',
         emp_correo: '',
         emp_especialidad: '',
-        emp_actividad: '' // Agregamos el nuevo campo
+        emp_actividad: '',
+        emp_presente: true,  // Inicializado en true para que la lógica funcione
     });
     const [error, setError] = useState(null);
 
@@ -25,15 +26,45 @@ export function Trabajador() {
     useEffect(() => {
         const fetchWorkerData = async () => {
             try {
-                // Asegúrate de que las comillas sean invertidas para la interpolación
+                // Hacemos la solicitud a la API para obtener los datos del trabajador
                 const response = await axios.get(`http://localhost:8000/api/personal/Empleado/${userRut}`);
-                setWorker(response.data);  // Actualiza el estado con los datos del trabajador
+                
+                // Verificar si el trabajador está presente
+                if (response.data.emp_presente === false) {
+                    setWorker({ ...response.data, emp_presente: false });
+                } else {
+                    setWorker(response.data);  // Actualiza el estado con los datos del trabajador
+                }
             } catch (err) {
                 setError('Error al obtener los datos del trabajador');
             }
         };
+        
+        // Llamada inicial para obtener los datos
         fetchWorkerData();
+
+        // Configurar intervalo para verificar el estado de emp_presente cada 10 segundos
+        const intervalId = setInterval(() => {
+            fetchWorkerData();
+        }, 2000); // 10 segundos de intervalo
+
+        // Limpiar el intervalo cuando el componente se desmonte
+        return () => clearInterval(intervalId);
     }, [userRut]);  // Re-ejecutar cuando cambie emp_rut
+
+    // Si emp_presente es false, mostrar solo mensaje y botón para iniciar sesión
+    if (worker.emp_presente === false) {
+        return (
+            <Container className="mt-3 conTrab">
+                <Row>
+                    <Col>
+                        <Alert color="danger">Tu sesión ha expirado. Por favor, vuelve a iniciar sesión.</Alert>
+                        <Button color="primary" onClick={() => navigate('/InicioSesion')}>Volver a iniciar sesión</Button>
+                    </Col>
+                </Row>
+            </Container>
+        );
+    }
 
     // Comprobamos si la actividad está en la lista de actividades permitidas
     const isActivityAllowed = [
@@ -53,7 +84,10 @@ export function Trabajador() {
             emp_correo: worker.emp_correo,
             emp_especialidad: worker.emp_especialidad,
             emp_actividad: worker.emp_actividad,
-            emp_rut: worker.emp_rut
+            emp_rut: worker.emp_rut,
+            emp_turno: worker.emp_turno,
+            emp_supervisorAcargo: worker.emp_supervisorAcargo,
+            emp_presente: worker.emp_presente
         };
     
         navigate('/art', { state: workerData }); // Pasa solo el objeto con los datos requeridos
@@ -66,6 +100,7 @@ export function Trabajador() {
                     <Card className="w-100 cardInfoTrab">
                         <CardBody>
                             <h2>Información del Trabajador</h2>
+                            <br></br>
                             <Form>
                                 <FormGroup>
                                     <Label for="fullName">Nombre Completo</Label>

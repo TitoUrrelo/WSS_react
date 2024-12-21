@@ -12,3 +12,6 @@ class Empleado(models.Model):
     emp_contraseña = models.CharField(max_length=32)
     emp_especialidad = models.CharField(max_length=100)
     emp_actividad = models.CharField(max_length=100)
+    emp_turno = models.CharField(max_length=10)
+    emp_presente = models.BooleanField(default=False)
+    emp_supervisorAcargo = models.CharField(max_length=100)

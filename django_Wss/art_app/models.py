@@ -26,24 +26,21 @@ class Art(models.Model):
     art_id = models.BigAutoField(primary_key=True)
     art_trab_simultaneo = models.BooleanField(default=False)
     art_estado_trab = models.BooleanField(default=False)
+    art_estado_Super = models.BooleanField(default=False)
     art_hora_inicio = models.TimeField()
     art_hora_fin = models.TimeField()
     art_fecha = models.DateField()
     art_supervisor = models.CharField(max_length=200)
     art_estado = models.CharField(max_length=200)
-    art_comunicAccions = models.BooleanField()
+    art_comunicAccions = models.BooleanField(default=False)
     art_contextTrabSim = models.TextField(max_length=150, default='')
-    art_coordLider = models.BooleanField()
-    art_verfControles = models.BooleanField()
+    art_coordLider = models.BooleanField(default=False)
+    art_verfControles = models.BooleanField(default=False)
 
-    # Método para establecer la lista en el campo art_contextTrabSim
     def set_art_contextTrabSim(self, context_list):
-        # Convierte la lista en una cadena separada por comas
         self.art_contextTrabSim = ','.join(context_list)
 
-    # Método para recuperar la lista desde art_contextTrabSim
     def get_art_contextTrabSim(self):
-        # Convierte la cadena separada por comas en una lista
         return self.art_contextTrabSim.split(',') if self.art_contextTrabSim else []
 
     pregunta = models.ManyToManyField(Pregunta, through='ArtPregunta')
@@ -57,8 +54,8 @@ class ArtPregunta(models.Model):
 
 class RespuestaRiesgo(models.Model):
     id = models.BigAutoField(primary_key=True)
-    art = models.ForeignKey('Art', on_delete=models.CASCADE, related_name='respuestas_riesgo')  # Relación con art_app_art
-    riesgo_critico = models.ForeignKey('RiesgoCritico', on_delete=models.CASCADE)  # Relación con el riesgo crítico
-    pregunta_numero = models.IntegerField()  # Número de la pregunta
-    respuesta = models.BooleanField()  # Respuesta dada (True o False)
-    empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE)  # Empleado que responde
+    art = models.ForeignKey('Art', on_delete=models.CASCADE, related_name='respuestas_riesgo') 
+    riesgo_critico = models.ForeignKey('RiesgoCritico', on_delete=models.CASCADE) 
+    pregunta_numero = models.IntegerField() 
+    respuesta = models.BooleanField(default=False)
+    empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE) 
