@@ -33,7 +33,7 @@ class Art(models.Model):
     art_supervisor = models.CharField(max_length=200)
     art_estado = models.CharField(max_length=200)
     art_comunicAccions = models.BooleanField(default=False)
-    art_contextTrabSim = models.TextField(max_length=150, default='')
+    art_contextTrabSim = models.TextField(max_length=250, default='')
     art_coordLider = models.BooleanField(default=False)
     art_verfControles = models.BooleanField(default=False)
 

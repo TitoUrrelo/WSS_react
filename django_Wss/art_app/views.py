@@ -292,9 +292,34 @@ def obtenerArt2(request, art_id=None):
         actividades_data.append(actividad_data)
     art_data["actividades"] = actividades_data
 
+    # Limpiar art_contextTrabSim
+    if "art_contextTrabSim" in art_data:
+        import ast
+        # Convertir cadena de lista a una lista real
+        try:
+            context_list = ast.literal_eval(art_data["art_contextTrabSim"])
+            # Filtrar elementos vacíos o listas vacías
+            context_list = [item for item in context_list if item != '' and item != []]
+            art_data["art_contextTrabSim"] = context_list
+        except (ValueError, SyntaxError):
+            art_data["art_contextTrabSim"] = []
+
     # Respuestas y empleados
     respuestas_riesgo = art_data.get("respuestas_riesgo", [])
     empleados = art_data.get("empleado", [])
+
+    # Agregar los detalles del empleado (nombre y especialidad)
+    empleados_data = []
+    for emp_rut in empleados:
+        empleado = Empleado.objects.filter(emp_rut=emp_rut).first()
+        if empleado:
+            empleados_data.append({
+                "emp_rut": empleado.emp_rut,
+                "emp_nombre": empleado.emp_nombre,
+                "emp_especialidad": empleado.emp_especialidad,
+            })
+
+    art_data["empleado"] = empleados_data
 
     # Agrupar por trabajador, supervisor y luego por riesgo crítico
     respuestas_trabajador = {}
@@ -640,11 +665,36 @@ def obtenerArt(request, art_id=None):
         actividades_data.append(actividad_data)
     art_data["actividades"] = actividades_data
 
-    # Procesar respuestas y empleados
+    # Limpiar art_contextTrabSim
+    if "art_contextTrabSim" in art_data:
+        import ast
+        # Convertir cadena de lista a una lista real
+        try:
+            context_list = ast.literal_eval(art_data["art_contextTrabSim"])
+            # Filtrar elementos vacíos o listas vacías
+            context_list = [item for item in context_list if item != '' and item != []]
+            art_data["art_contextTrabSim"] = context_list
+        except (ValueError, SyntaxError):
+            art_data["art_contextTrabSim"] = []
+
+    # Respuestas y empleados
     respuestas_riesgo = art_data.get("respuestas_riesgo", [])
     empleados = art_data.get("empleado", [])
 
-    # Agrupar respuestas por trabajador, supervisor y luego por riesgo crítico
+    # Agregar los detalles del empleado (nombre y especialidad)
+    empleados_data = []
+    for emp_rut in empleados:
+        empleado = Empleado.objects.filter(emp_rut=emp_rut).first()
+        if empleado:
+            empleados_data.append({
+                "emp_rut": empleado.emp_rut,
+                "emp_nombre": empleado.emp_nombre,
+                "emp_especialidad": empleado.emp_especialidad,
+            })
+
+    art_data["empleado"] = empleados_data
+
+    # Agrupar por trabajador, supervisor y luego por riesgo crítico
     respuestas_trabajador = {}
     respuestas_supervisor = {}
 
@@ -682,9 +732,6 @@ def obtenerArt(request, art_id=None):
     return response
 
 def generar_pdf(art_data):
-    """
-    Genera un archivo PDF con los datos de la ART y lo retorna como un objeto de bytes.
-    """
     try:
         # Leer la plantilla PDF
         template_path = 'static/pdf/Formulario_ART_1.0.pdf'
@@ -699,15 +746,19 @@ def generar_pdf(art_data):
             "nombreSuper": art_data['art_supervisor'],
             "fecha": art_data['art_fecha'],
             "horaInicio": art_data['art_hora_inicio'],
-            "horaTermino": art_data['art_hora_fin'] ,
+            "horaTermino": art_data['art_hora_fin'],
             "trabajoRealizar": ', '.join(actividad['act_nombre'] for actividad in art_data['actividades']),
             "riesgo": ', '.join(actividad['act_riesgo'] for actividad in art_data['actividades']),
             "medida": ', '.join(actividad['act_medida_control'] for actividad in art_data['actividades']),
+            "contexto": art_data['art_contextTrabSim'],
+            "lugarEspecifico": 'Laboratorio WSS',
             # Agrega más campos según sea necesario
         }
 
         # Construir dinámicamente los radio buttons
         radio_button_dict = {}
+
+
         for pregunta in art_data['preguntas_art']:
             id_pregunta = pregunta['id_pregunta']
             value = pregunta['respuestaTrans']
@@ -729,11 +780,11 @@ def generar_pdf(art_data):
             else:
                 radio_button_dict["/trabSimult_si"] = 'SI'
 
-        if art_data.get('art_estado_trab') is not None:
-            if art_data['art_estado_trab'] == False:
-                radio_button_dict["/condiTrab1_no"] = 'NO'
+        if art_data.get('art_estado_Super') is not None:
+            if art_data['art_estado_Super'] == False:
+                radio_button_dict["/verifCondiTrab_no"] = 'NO'
             else:
-                radio_button_dict["/condiTrab1_si"] = 'SI'
+                radio_button_dict["/verifCondiTrab_si"] = 'SI'
 
         if art_data.get('art_comunicAccions') is not None:
             if art_data['art_comunicAccions'] == False:
@@ -753,38 +804,75 @@ def generar_pdf(art_data):
             else:
                 radio_button_dict["/verifTrabSimult_si"] = 'SI'
 
-        # Definir las claves de radio button según el tipo de respuesta (trabajador o supervisor)
-        if empleado in empleados:  # Trabajador
-            if riesgo_critico == 6:
-                key_base = f"/RcTrabr1_{pregunta_numero}"
-            elif riesgo_critico == 7:
-                key_base = f"/RcTrabr2_{pregunta_numero}"
+        contador_trabajador = 1
 
-            # Asignar los valores de radio button basados en la respuesta (True/False)
-            if respuesta["respuesta"]:
-                radio_button_dict[f"{key_base}_si"] = 'SI'
-            else:
-                radio_button_dict[f"{key_base}_no"] = 'NO'
+        # Procesar las respuestas del trabajador
+        for trabajador_id, respuestas in art_data["respuestas_trabajador"].items():
+            clave_trabajador = f"/RcTrabr{contador_trabajador}"
+            pregunta_numero = 1
+            
+            for respuesta in respuestas:
+                respuesta_valor = respuesta["respuesta"]
+                clave_radio = f"{clave_trabajador}_{pregunta_numero}_"
+                if respuesta_valor:
+                    radio_button_dict[clave_radio + "si"] = 'SI'
+                else:
+                    radio_button_dict[clave_radio + "no"] = 'NO'
+                pregunta_numero += 1
+            contador_trabajador += 1
+        
+        contador_supervisor = 1
 
-            if riesgo_critico not in respuestas_trabajador:
-                respuestas_trabajador[riesgo_critico] = []
-            respuestas_trabajador[riesgo_critico].append(respuesta_data)
+        # Procesar las respuestas del supervisor
+        for trabajador_id, respuestas in art_data["respuestas_supervisor"].items():
+            clave_supervisor = f"/Rcsuper{contador_supervisor}"
+            pregunta_numero = 1
+            
+            for respuesta in respuestas:
+                respuesta_valor = respuesta["respuesta"]
+                clave_radio = f"{clave_supervisor}_{pregunta_numero}_"
+                if respuesta_valor:
+                    radio_button_dict[clave_radio + "si"] = 'SI'
+                else:
+                    radio_button_dict[clave_radio + "no"] = 'NO'
+                pregunta_numero += 1
+            contador_supervisor += 1
 
-        else:  # Supervisor
-            if riesgo_critico == 6:
-                key_base = f"/Rcsuper1_{pregunta_numero}"
-            elif riesgo_critico == 7:
-                key_base = f"/Rcsuper2_{pregunta_numero}"
+        # Inicializamos los contadores
+        contador_empleado = 1
 
-            # Asignar los valores de radio button basados en la respuesta (True/False)
-            if respuesta["respuesta"]:
-                radio_button_dict[f"{key_base}_si"] = 'SI'
-            else:
-                radio_button_dict[f"{key_base}_no"] = 'NO'
+        # Procesamos los empleados y agregamos los nombres y los radio buttons correspondientes
+        for empleado in art_data["empleado"]:
+            nombre_empleado = empleado["emp_nombre"]
+            # Agregar al data_dict el nombre del empleado con el formato requerido
+            data_dict[f"nombreTrab{contador_empleado}"] = nombre_empleado
+            
+            # Verificar el estado del trabajador y agregar el radio button correspondiente
+            if art_data.get('art_estado_trab') is not None:
+                if art_data['art_estado_trab'] == False:
+                    radio_button_dict[f"/condiTrab{contador_empleado}_no"] = 'NO'
+                else:
+                    radio_button_dict[f"/condiTrab{contador_empleado}_si"] = 'SI'
+            
+            # Incrementar el contador para el siguiente empleado
+            contador_empleado += 1
 
-            if riesgo_critico not in respuestas_supervisor:
-                respuestas_supervisor[riesgo_critico] = []
-            respuestas_supervisor[riesgo_critico].append(respuesta_data)
+        contador_riesgo_trab = 1
+        contador_riesgo_sup = 1
+
+        # Iterar sobre los riesgos críticos
+        for actividad in art_data["actividades"]:
+            for riesgo in actividad["riesgos_criticos"]:
+                rc_nombre = riesgo["rc_nombre"]
+
+                # Agregar nombre del riesgo crítico al diccionario con formato
+                data_dict[f"nombreRcTrab{contador_riesgo_trab}"] = rc_nombre
+                data_dict[f"nombreRcSup{contador_riesgo_sup}"] = rc_nombre
+
+                # Incrementar contadores
+                contador_riesgo_trab += 1
+                contador_riesgo_sup += 1
+
 
         # Procesar los campos del formulario en el PDF
         pdf_writer = PdfWriter()

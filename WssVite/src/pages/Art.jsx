@@ -195,6 +195,17 @@ const PreguntasTrabajoSimultaneo = ({ simultaneoData, handleSimultaneoChange, tr
                         />
                         <Label check>Trabajo entre actividades</Label>
                     </FormGroup>
+                    <FormGroup check>
+                        <Input
+                            type="checkbox"
+                            name="trabajoSimultaneoContexto"
+                            value="Personal_externo"
+                            checked={simultaneoData.contextTrabSim?.includes("no existe trabajo simultáneo") ? false : simultaneoData.contextTrabSim?.includes("Personal_externo")}
+                            onChange={handleSimultaneoChange}
+                            disabled={!trabajoSimultaneo}
+                        />
+                        <Label check>Trabajo con personal externo</Label>
+                    </FormGroup>
                 </div>
             </FormGroup>
 
@@ -394,6 +405,7 @@ export function FormularioART({ actNombre, }) {
         setTrabajoSimultaneo(value);
         setAlertVisible(false); // Ocultar alerta cuando se selecciona una opción
         if (!value) {
+            setSelectedEmpleados([]);
             setSimultaneoData({
                 contextTrabSim: ["no existe trabajo simultáneo"],
                 coordLider: false,
@@ -497,20 +509,20 @@ export function FormularioART({ actNombre, }) {
 
         // Cambiar el estado de art_estado a "tarjeta verde" si alguna de las respuestas es "no"
         const todasLasRespuestas = [
-            ...respuestasTransversales.map((resp) => ({ respuesta: resp.respuestaTrans })),  // Respuestas de las preguntas transversales, adaptadas
-            ...respuestas.map((resp) => ({ respuesta: resp.respuesta })),  // Respuestas de los riesgos críticos
-            { respuesta: estadoTrabajador === false ? false : true }  // Respuesta de estado trabajador
+            ...respuestasTransversales.map((resp) => ({ respuesta: resp.respuestaTrans })), // Respuestas de las preguntas transversales, adaptadas
+            ...respuestas.map((resp) => ({ respuesta: resp.respuesta })), // Respuestas de los riesgos críticos
+            { respuesta: estadoTrabajador === false ? false : true } // Respuesta de estado trabajador
         ];
         
         // Ahora evaluamos si alguna de las respuestas es "false"
         if (todasLasRespuestas.some((respuesta) => respuesta.respuesta === false)) {
             // Si alguna respuesta es "no" o "false"
-            data.art.art_estado = "tarjeta verde" + (textInputValue ? "\n" + textInputValue : "");
+            data.art.art_estado = "tarjeta verde" + (textInputValue ? "\n" + textInputValue : "\nno está en condiciones para trabajar");
         } else {
             // Si todas son "sí" o "true"
             data.art.art_estado = "Pendiente";
         }
-
+        
         try {
             const response = await axios.post('http://127.0.0.1:8000/api/art/regisRespArt/', data);
             setAlertMessage({ type: 'success', text: 'Formulario enviado exitosamente.' });
@@ -661,24 +673,6 @@ export function FormularioART({ actNombre, }) {
                                             handleSimultaneoChange={handleSimultaneoChange}
                                             trabajoSimultaneo={trabajoSimultaneo}
                                         />
-    
-                                        <Card className="mb-4">
-                                            <CardBody>
-                                                <div>
-                                                    <h5>Confirmo que estoy en condiciones de hacer el trabajo</h5>
-                                                    <FormGroup>
-                                                        <Input type="radio" name="estadoTrabajador" value="true" onChange={handleEstadoTrabajadorChange} /> Sí
-                                                        <Input type="radio" name="estadoTrabajador" value="false" className="ms-2" onChange={handleEstadoTrabajadorChange} /> No
-                                                    </FormGroup>
-                                                    {alertVisibleCon && (
-                                                        <Alert color="danger">
-                                                            Por favor, seleccione si una opción.
-                                                        </Alert>
-                                                        )}
-                                                </div>
-                                            </CardBody>
-                                        </Card>
-                                        {alertMessage && <Alert color={alertMessage.type}>{alertMessage.text}</Alert>}
                                         <Card>
                                         <div className="text-center">
                                                 <h4>
@@ -702,6 +696,7 @@ export function FormularioART({ actNombre, }) {
                                                                 type="checkbox"
                                                                 onChange={() => handleCheckboxChange(empleado)}
                                                                 disabled={!trabajoSimultaneo}
+                                                                checked={selectedEmpleados.includes(empleado)}
                                                                 />
                                                             </td>
                                                             </tr>
@@ -718,6 +713,23 @@ export function FormularioART({ actNombre, }) {
                                                 </ul>
                                             </div>
                                         </Card>
+                                        <Card className="mb-4">
+                                            <CardBody>
+                                                <div>
+                                                    <h5>Confirmo que estoy en condiciones de hacer el trabajo</h5>
+                                                    <FormGroup>
+                                                        <Input type="radio" name="estadoTrabajador" value="true" onChange={handleEstadoTrabajadorChange} /> Sí
+                                                        <Input type="radio" name="estadoTrabajador" value="false" className="ms-2" onChange={handleEstadoTrabajadorChange} /> No
+                                                    </FormGroup>
+                                                    {alertVisibleCon && (
+                                                        <Alert color="danger">
+                                                            Por favor, seleccione si una opción.
+                                                        </Alert>
+                                                        )}
+                                                </div>
+                                            </CardBody>
+                                        </Card>
+                                        {alertMessage && <Alert color={alertMessage.type}>{alertMessage.text}</Alert>}
                                         <Button type="submit" disabled={isSubmitting || isSubmitted}>
                                             {isSubmitting ? "Enviando..." : isSubmitted ? "Enviado" : "Enviar"}
                                         </Button>

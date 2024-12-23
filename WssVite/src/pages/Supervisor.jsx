@@ -603,7 +603,7 @@ export function Supervisor() {
                         <Nav fill tabs >
                             <NavItem>
                                 <Button color="primary" onClick={toggleOffcanvas}>
-                                    mi info
+                                    Mi info
                                 </Button>
                             </NavItem>
                             <NavItem>
@@ -619,7 +619,7 @@ export function Supervisor() {
                                     className={activeTab === "2" ? "active" : ""}
                                     onClick={() => toggleTab("2")}
                                 >
-                                    asignacion ARTs
+                                    Asignación ARTs
                                 </NavLink>
                             </NavItem>
                             <NavItem>
@@ -723,23 +723,25 @@ export function Supervisor() {
                                                         </tr>
                                                     </thead>
                                                     <tbody>
-                                                        {empleadosTrab.map((trabajador, index) => (
-                                                            <tr key={trabajador.emp_rut}>
-                                                                <td>{index + 1}</td>
-                                                                <td>
-                                                                    <input
-                                                                        type="checkbox"
-                                                                        checked={empleadosSeleccionados.includes(trabajador.emp_rut)}
-                                                                        onChange={() => handleCheckboxChange(trabajador.emp_rut)}
-                                                                    />
-                                                                </td>
-                                                                <td>{trabajador.emp_nombre}</td>
-                                                                <td>{trabajador.emp_rut}</td>
-                                                                <td>{trabajador.emp_correo}</td>
-                                                                <td>{trabajador.emp_especialidad}</td>
-                                                                <td>{trabajador.emp_actividad}</td>
-                                                            </tr>
-                                                        ))}
+                                                        {empleadosTrab
+                                                            .filter(trabajador => trabajador.emp_presente) // Filtrar solo los trabajadores con emp_presente en true
+                                                            .map((trabajador, index) => (
+                                                                <tr key={trabajador.emp_rut}>
+                                                                    <td>{index + 1}</td>
+                                                                    <td>
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={empleadosSeleccionados.includes(trabajador.emp_rut)}
+                                                                            onChange={() => handleCheckboxChange(trabajador.emp_rut)}
+                                                                        />
+                                                                    </td>
+                                                                    <td>{trabajador.emp_nombre}</td>
+                                                                    <td>{trabajador.emp_rut}</td>
+                                                                    <td>{trabajador.emp_correo}</td>
+                                                                    <td>{trabajador.emp_especialidad}</td>
+                                                                    <td>{trabajador.emp_actividad}</td>
+                                                                </tr>
+                                                            ))}
                                                     </tbody>
                                                 </Table>
                                                 <Button
@@ -820,7 +822,8 @@ export function Supervisor() {
                                                     <Card className="mb-4">
                                                         <CardBody>
                                                             <div>
-                                                                <h5>Confirmo que estoy en condiciones de hacer el trabajo</h5>
+                                                                <h5>¿Verifiqué las condiciones físicas y psicológicas
+                                                                de todo el Equipo Ejecutor del Trabajo?</h5>
                                                                 <FormGroup>
                                                                     <Input type="radio" name="estadoTrabajador" value="true" onChange={handleEstadoTrabajadorChange} /> Sí
                                                                     <Input type="radio" name="estadoTrabajador" value="false" className="ms-2" onChange={handleEstadoTrabajadorChange} /> No
@@ -1030,7 +1033,7 @@ export function Supervisor() {
                                                             <th>Rut Empleado(s)</th>
                                                             <th>Hora Inicio</th>
                                                             <th>Turno</th>
-                                                            <th>Fecha</th>
+                                                            <th style={{ width: '150px' }}>Fecha</th>
                                                             <th>Actividad ART</th>
                                                             <th>Estado</th>
                                                             <th>Acciones</th>

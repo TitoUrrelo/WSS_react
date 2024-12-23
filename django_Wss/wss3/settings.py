@@ -83,7 +83,7 @@ WSGI_APPLICATION = 'wss3.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'wss7_db',
+        'NAME': 'wss8_db',
         'USER': 'root',
         'PASSWORD': '',
         'HOST': 'localhost',
